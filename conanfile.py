@@ -7,9 +7,9 @@ import os
 
 class GLibConan(ConanFile):
     name = "glib"
-    version = "2.57.1"
+    version = "2.58.0"
     description = "GLib provides the core application building blocks for libraries and applications written in C"
-    url = "https://github.com/bincrafters/conan-glib"
+    url = "https://github.com/GNOME/glib"
     homepage = "https://github.com/GNOME/glib"
     license = "LGPL-2.1"
     exports = ["LICENSE.md"]
