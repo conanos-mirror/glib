@@ -46,7 +46,6 @@ class GLibConan(ConanFile):
             self.build_requires("cygwin_installer/2.9.0@bincrafters/stable")
 
     def source(self):
-        print('-- source ---->',os.path.abspath('.'))
         tools.get("{0}/archive/{1}.tar.gz".format(self.homepage, self.version))
         #extracted_dir = self.name + "-" + self.version
         #os.rename(extracted_dir, self.source_subfolder)
