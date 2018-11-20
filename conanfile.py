@@ -5,6 +5,7 @@ from conans import ConanFile, AutoToolsBuildEnvironment, tools, Meson
 import os
 import shutil
 import platform
+import sys
 
 from conanos.build import config_scheme
 class GLibConan(ConanFile):
@@ -45,6 +46,7 @@ class GLibConan(ConanFile):
             self.build_requires("cygwin_installer/2.9.0@bincrafters/stable")
 
     def source(self):
+        print('-- source ---->',os.path.abspath('.'))
         tools.get("{0}/archive/{1}.tar.gz".format(self.homepage, self.version))
         #extracted_dir = self.name + "-" + self.version
         #os.rename(extracted_dir, self.source_subfolder)
@@ -60,55 +62,51 @@ class GLibConan(ConanFile):
             open(os.path.join(self.source_subfolder, file_name), 'w+')
 
     def build(self):
+        
+        pkgconfigdir=os.path.abspath('~pkgconfig')
+        prefix = os.path.abspath('~package')
 
-        prefix = os.path.abspath('package')
+        meson = Meson(self)
+        
+        defs = {'prefix':prefix, 
+                'libdir':'lib',
+                'libmount':'false', 'dtrace':'false', 'selinux': 'false',
+                'internal_pcre' : 'true' if self.options.with_pcre else 'false'
+        }
 
-        with tools.chdir(self.source_subfolder):
-            meson = Meson(self)
+        if self.settings.compiler == 'Visual Studio':
+            defs['iconv'] = 'native'
+            defs['xattr'] = 'false'
             
-            defs = { 'prefix':prefix, 
-                      #'libdir':'lib',
-                      'libmount':'false', 'dtrace':'false', 'selinux': 'false',
-                      'internal_pcre' : 'true' if self.options.with_pcre else 'false'
-            }
-            
-            pkgconfigdir=os.path.abspath('~pkgconfig')
-            
-            if not os.path.exists(pkgconfigdir):
-                os.makedirs(pkgconfigdir)
+            # workaround for CI build in with MSVC
+            os.environ["VisualStudioVersion"] = ''
 
-            for name in self.requires.keys():                
-                rootd = self.deps_cpp_info[name].rootpath
-                pc =  os.path.join(rootd,name +'.pc')
-                new_pc = os.path.join(pkgconfigdir,name +'.pc')
-                shutil.copy(pc,pkgconfigdir)
-                tools.replace_prefix_in_pc_file(new_pc,rootd)
-            pkg_config_paths=[pkgconfigdir]
+        if not os.path.exists(pkgconfigdir):
+            os.makedirs(pkgconfigdir)
 
-            meson.configure(defs=defs,
-                source_folder = self.source_subfolder,
-                build_folder  = '~build',
-                pkg_config_paths=pkg_config_paths )
-            meson.build()
-            self.run('ninja -C {0} install'.format(meson.build_dir))
+        for name in self.requires.keys():                
+            rootd = self.deps_cpp_info[name].rootpath
+            pc =  os.path.join(rootd,name +'.pc')
+            new_pc = os.path.join(pkgconfigdir,name +'.pc')
+            shutil.copy(pc,pkgconfigdir)
+            tools.replace_prefix_in_pc_file(new_pc,rootd)
+        pkg_config_paths=[pkgconfigdir]
+
+        meson.configure(defs=defs,
+            source_folder = self.source_subfolder,
+            build_folder  = '~build',
+            pkg_config_paths=pkg_config_paths )
+        meson.build()
+        self.run('ninja -C {0} install'.format(meson.build_dir))
 
     def package(self):
-        prefix = os.path.abspath('~install')
-        bind   = os.path.join(prefix,'bin') 
-        libd   = os.path.join(prefix,'lib') 
-        incd   = os.path.join(prefix,'include') 
-        pkgd   = os.path.abspath('package')
+        self.copy(pattern="*", src='~package')
 
-        self.copy(pattern="*.dll", dst="bin",  src=bind, keep_path=False)
-        self.copy(pattern="*.pdb", dst="bin",  src=bind, keep_path=False)
-        shutil.copytree(libd,'./package/lib')
-        shutil.copytree(incd,'./package/include')
-        self.copy(pattern="*.pc", dst=".",  src='./package/lib/pkgconfig', keep_path=False)
-        shutil.rmtree('./package/lib/pkgconfig')
 
 
     def package_info(self):
         self.cpp_info.libs = tools.collect_libs(self)
+        
         if self.settings.os == "Linux":
             self.cpp_info.libs.append("pthread")
         self.cpp_info.includedirs.append(os.path.join('include', 'glib-2.0'))
