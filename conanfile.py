@@ -37,7 +37,7 @@ class GLibConan(ConanFile):
         if self.settings.os == 'Linux':
             if self.options.with_pcre:
                 self.requires.add("pcre/8.41@bincraftres/stable")
-            self.requires.add('libffi/3.3-rc0@conanos/stable')
+            #self.requires.add('libffi/3.3-rc0@conanos/stable')
 
         config_scheme(self)
 
@@ -85,7 +85,14 @@ class GLibConan(ConanFile):
 
         for name in self.requires.keys():                
             rootd = self.deps_cpp_info[name].rootpath
-            pc =  os.path.join(rootd,name +'.pc')
+            pc = None
+            for d in ['lib/pkgconfig','']:
+                pc = os.path.join(rootd ,d,'%s.pc'%name)
+                if os.path.exists(pc):
+                    break
+            assert(pc)
+            tools.out.info('%s ->%s'%(name,pc))
+
             new_pc = os.path.join(pkgconfigdir,name +'.pc')
             shutil.copy(pc,pkgconfigdir)
             tools.replace_prefix_in_pc_file(new_pc,rootd)
@@ -104,7 +111,9 @@ class GLibConan(ConanFile):
 
 
     def package_info(self):
+        print("-------------------------")
         self.cpp_info.libs = tools.collect_libs(self)
+        print(self.cpp_info.libs)
         
         if self.settings.os == "Linux":
             self.cpp_info.libs.append("pthread")
