@@ -43,7 +43,8 @@ class GLibConan(ConanFile):
 
     def build_requirements(self):
         if platform.system() == "Windows":
-            self.build_requires("cygwin_installer/2.9.0@bincrafters/stable")
+            #self.build_requires("cygwin_installer/2.9.0@bincrafters/stable")
+            self.build_requires("msys2_installer/20161025@bincrafters/stable")
 
     def source(self):
         tools.get("{0}/archive/{1}.tar.gz".format(self.homepage, self.version))
@@ -78,7 +79,7 @@ class GLibConan(ConanFile):
             defs['xattr'] = 'false'
             
             # workaround for CI build in with MSVC
-            os.environ["VisualStudioVersion"] = ''
+            #os.environ["VisualStudioVersion"] = ''
 
         if not os.path.exists(pkgconfigdir):
             os.makedirs(pkgconfigdir)
