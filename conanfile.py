@@ -7,7 +7,7 @@ import shutil
 import platform
 import sys
 
-from conanos.build import config_scheme
+from conanos.build import config_scheme,pkgconfig_adaption
 class GLibConan(ConanFile):
     name = "glib"
     version = "2.58.1"
@@ -64,8 +64,10 @@ class GLibConan(ConanFile):
     def build(self):
         
         pkgconfigdir=os.path.abspath('~pkgconfig')
-        prefix = os.path.abspath('~package')
+        prefix = self.package_folder #os.path.abspath('~package')
 
+        pkgconfig_adaption(self,pkgconfigdir)
+        
         meson = Meson(self)
         
         defs = {'prefix':prefix, 
@@ -81,24 +83,25 @@ class GLibConan(ConanFile):
             # workaround for CI build in with MSVC
             #os.environ["VisualStudioVersion"] = ''
 
-        if not os.path.exists(pkgconfigdir):
-            os.makedirs(pkgconfigdir)
+        #if not os.path.exists(pkgconfigdir):
+        #    os.makedirs(pkgconfigdir)
 
-        for name in self.requires.keys():                
-            rootd = self.deps_cpp_info[name].rootpath
-            pc = None
-            for d in ['lib/pkgconfig','']:
-                pc = os.path.join(rootd ,d,'%s.pc'%name)
-                if os.path.exists(pc):
-                    break
-            assert(pc)
-            tools.out.info('%s ->%s'%(name,pc))
-
-            new_pc = os.path.join(pkgconfigdir,name +'.pc')
-            shutil.copy(pc,pkgconfigdir)
-            tools.replace_prefix_in_pc_file(new_pc,rootd)
-        pkg_config_paths=[pkgconfigdir]
-
+        #for name in self.requires.keys():                
+        #    rootd = self.deps_cpp_info[name].rootpath
+        #    pc = None
+        #    for d in ['lib/pkgconfig','']:
+        #        pc = os.path.join(rootd ,d,'%s.pc'%name)
+        #        if os.path.exists(pc):
+        #            break
+        #    assert(pc)
+        #    tools.out.info('%s ->%s'%(name,pc))
+#
+        #    new_pc = os.path.join(pkgconfigdir,name +'.pc')
+        #    shutil.copy(pc,pkgconfigdir)
+        #    tools.replace_prefix_in_pc_file(new_pc,rootd)
+        pkg_config_paths=[tools.unix_path(pkgconfigdir,tools.MSYS2)]
+        print('***>>>',pkg_config_paths)
+  
         meson.configure(defs=defs,
             source_folder = self.source_subfolder,
             build_folder  = '~build',
@@ -107,12 +110,12 @@ class GLibConan(ConanFile):
         self.run('ninja -C {0} install'.format(meson.build_dir))
 
     def package(self):
-        self.copy(pattern="*", src='~package')
+        pass # installed at build step
+        #self.copy(pattern="*", src='~package')
 
 
 
     def package_info(self):
-        print("-------------------------")
         self.cpp_info.libs = tools.collect_libs(self)
         print(self.cpp_info.libs)
         
