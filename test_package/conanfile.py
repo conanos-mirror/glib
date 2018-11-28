@@ -10,9 +10,9 @@ class TestPackageConan(ConanFile):
     settings = "os", "compiler", "build_type", "arch"
     generators = "cmake"
 
-    def build_requirements(self):
-        if platform.system() == "Windows":
-            self.build_requires("cygwin_installer/2.9.0@bincrafters/stable")
+    #def build_requirements(self):
+    #    if platform.system() == "Windows":
+    #        self.build_requires("cygwin_installer/2.9.0@bincrafters/stable")
 
     def build(self):
         cmake = CMake(self)

@@ -15,105 +15,55 @@ class GLibConan(ConanFile):
     url = "https://github.com/GNOME/glib"
     homepage = "https://github.com/GNOME/glib"
     license = "LGPL-2.1"
-    exports = ["LICENSE.md"]
+    exports = ["COPYING"]
+    generators = "visual_studio", "gcc"
     settings = "os", "arch", "compiler", "build_type"
     options = {"shared": [True, False], "fPIC": [True, False], "with_pcre": [True, False]}
-    default_options = "shared=True", "fPIC=True", "with_pcre=False"
-    source_subfolder = "%s-%s"%(name,version)
-    autotools = None
-    requires = "zlib/1.2.11@conanos/stable"
+    default_options = { 'shared': False, 'fPIC': True, 'with_pcre' : False }
 
-    def configure(self):
-        #if self.settings.os != 'Linux':
-        #    raise Exception("GNOME glib is only supported on Linux for now.")
-        del self.settings.compiler.libcxx
-
-        if self.settings.os == 'Windows':
-            if not self.options.shared:
-                raise Exception("Glib doesn't support static libraries on Windows yet.")
-
+    _source_subfolder = "source_subfolder"
+    _build_subfolder = "build_subfolder"
+    
 
     def requirements(self):
-        if self.settings.os == 'Linux':
-            if self.options.with_pcre:
-                self.requires.add("pcre/8.41@bincraftres/stable")
-            #self.requires.add('libffi/3.3-rc0@conanos/stable')
+        self.requires.add("zlib/1.2.11@conanos/stable")
+        self.requires.add("libffi/3.299999@conanos/stable")
 
         config_scheme(self)
 
-    def build_requirements(self):
-        if platform.system() == "Windows":
-            self.build_requires("cygwin_installer/2.9.0@bincrafters/stable")
+    def configure(self):
+        del self.settings.compiler.libcxx
+
+
+    #def requirements(self):
+    #    if self.settings.os == 'Linux':
+    #        if self.options.with_pcre:
+    #            self.requires.add("pcre/8.41@bincraftres/stable")
+    #        #self.requires.add('libffi/3.3-rc0@conanos/stable')
+
+    #    config_scheme(self)
 
     def source(self):
-        tools.get("{0}/archive/{1}.tar.gz".format(self.homepage, self.version))
-        #extracted_dir = self.name + "-" + self.version
-        #os.rename(extracted_dir, self.source_subfolder)
-        self._create_extra_files()
-
-        
-
-    def _create_extra_files(self):
-        with open(os.path.join(self.source_subfolder, 'gtk-doc.make'), 'w+') as fd:
-            fd.write('EXTRA_DIST =\n')
-            fd.write('CLEANFILES =\n')
-        for file_name in ['README', 'INSTALL']:
-            open(os.path.join(self.source_subfolder, file_name), 'w+')
+        url_ = 'https://github.com/GNOME/glib/archive/{version}.tar.gz'.format(version=self.version)
+        tools.get(url_)
+        extracted_dir = self.name + "-" + self.version
+        os.rename(extracted_dir, self._source_subfolder)
 
     def build(self):
-        
-        pkgconfigdir=os.path.abspath('~pkgconfig')
-        prefix = os.path.abspath('~package')
-
+        pkg_config_paths=[ os.path.join(self.deps_cpp_info[i].rootpath, "lib", "pkgconfig") for i in ["zlib","libffi"] ]
+        prefix = os.path.join(self.build_folder, self._build_subfolder, "install")
         meson = Meson(self)
-        
-        defs = {'prefix':prefix, 
-                'libdir':'lib',
-                'libmount':'false', 'dtrace':'false', 'selinux': 'false',
-                'internal_pcre' : 'true' if self.options.with_pcre else 'false'
-        }
-
-        if self.settings.compiler == 'Visual Studio':
-            defs['iconv'] = 'native'
-            defs['xattr'] = 'false'
-            
-            # workaround for CI build in with MSVC
-            os.environ["VisualStudioVersion"] = ''
-
-        if not os.path.exists(pkgconfigdir):
-            os.makedirs(pkgconfigdir)
-
-        for name in self.requires.keys():                
-            rootd = self.deps_cpp_info[name].rootpath
-            pc = None
-            for d in ['lib/pkgconfig','']:
-                pc = os.path.join(rootd ,d,'%s.pc'%name)
-                if os.path.exists(pc):
-                    break
-            assert(pc)
-            tools.out.info('%s ->%s'%(name,pc))
-
-            new_pc = os.path.join(pkgconfigdir,name +'.pc')
-            shutil.copy(pc,pkgconfigdir)
-            tools.replace_prefix_in_pc_file(new_pc,rootd)
-        pkg_config_paths=[pkgconfigdir]
-
-        meson.configure(defs=defs,
-            source_folder = self.source_subfolder,
-            build_folder  = '~build',
-            pkg_config_paths=pkg_config_paths )
+        meson.configure(defs={'prefix' : prefix},
+                        source_dir=self._source_subfolder, build_dir=self._build_subfolder,
+                        pkg_config_paths=pkg_config_paths)
         meson.build()
         self.run('ninja -C {0} install'.format(meson.build_dir))
 
     def package(self):
-        self.copy(pattern="*", src='~package')
-
-
+        self.copy("*", dst=self.package_folder, src=os.path.join(self.build_folder,self._build_subfolder, "install"))
 
     def package_info(self):
-        print("-------------------------")
         self.cpp_info.libs = tools.collect_libs(self)
-        print(self.cpp_info.libs)
         
         if self.settings.os == "Linux":
             self.cpp_info.libs.append("pthread")
