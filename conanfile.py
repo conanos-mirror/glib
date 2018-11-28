@@ -62,6 +62,8 @@ class GLibConan(ConanFile):
     def package(self):
         self.copy("*", dst=self.package_folder, src=os.path.join(self.build_folder,self._build_subfolder, "install"))
 
+
+
     def package_info(self):
         self.cpp_info.libs = tools.collect_libs(self)
         
