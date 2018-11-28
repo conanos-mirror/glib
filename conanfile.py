@@ -52,10 +52,11 @@ class GLibConan(ConanFile):
     def build(self):
         pkg_config_paths=[ os.path.join(self.deps_cpp_info[i].rootpath, "lib", "pkgconfig") for i in ["zlib","libffi"] ]
         prefix = os.path.join(self.build_folder, self._build_subfolder, "install")
+        defs = {'prefix' : prefix}
+        if self.settings.os == "Linux":
+            defs.update({'libdir':'lib'})
         meson = Meson(self)
-        meson.configure(defs={'prefix' : prefix},
-                        source_dir=self._source_subfolder, build_dir=self._build_subfolder,
-                        pkg_config_paths=pkg_config_paths)
+        meson.configure(defs=defs,source_dir=self._source_subfolder, build_dir=self._build_subfolder,pkg_config_paths=pkg_config_paths)
         meson.build()
         self.run('ninja -C {0} install'.format(meson.build_dir))
 
