@@ -19,7 +19,7 @@ class GLibConan(ConanFile):
     generators = "visual_studio", "gcc"
     settings = "os", "arch", "compiler", "build_type"
     options = {"shared": [True, False], "fPIC": [True, False], "with_pcre": [True, False]}
-    default_options = { 'shared': False, 'fPIC': True, 'with_pcre' : False }
+    default_options = { 'shared': True, 'fPIC': True, 'with_pcre' : False }
 
     _source_subfolder = "source_subfolder"
     _build_subfolder = "build_subfolder"
@@ -29,11 +29,14 @@ class GLibConan(ConanFile):
         self.requires.add("zlib/1.2.11@conanos/stable")
         self.requires.add("libffi/3.299999@conanos/stable")
 
-        config_scheme(self)
-
     def configure(self):
         del self.settings.compiler.libcxx
 
+        config_scheme(self)
+    
+    def config_options(self):
+        if self.settings.os == "Windows":
+            del self.options.fPIC
 
     #def requirements(self):
     #    if self.settings.os == 'Linux':
