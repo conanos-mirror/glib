@@ -16,6 +16,7 @@ class GLibConan(ConanFile):
     homepage = "https://github.com/GNOME/glib"
     license = "LGPL-2.1"
     exports = ["COPYING"]
+    exports_sources = ["gdatagrambased.h"]
     generators = "visual_studio", "gcc"
     settings = "os", "arch", "compiler", "build_type"
     options = {"shared": [True, False], "fPIC": [True, False], "with_pcre": [True, False]}
@@ -51,6 +52,9 @@ class GLibConan(ConanFile):
         tools.get(url_)
         extracted_dir = self.name + "-" + self.version
         os.rename(extracted_dir, self._source_subfolder)
+        if self.settings.os == 'Windows':
+            # for libsoup building
+            shutil.copy2(os.path.join(self.source_folder,"gdatagrambased.h"), os.path.join(self.source_folder,self._source_subfolder,"gio","gdatagrambased.h"))
 
     def build(self):
         pkg_config_paths=[ os.path.join(self.deps_cpp_info[i].rootpath, "lib", "pkgconfig") for i in ["zlib","libffi"] ]
@@ -65,7 +69,9 @@ class GLibConan(ConanFile):
 
     def package(self):
         self.copy("*", dst=self.package_folder, src=os.path.join(self.build_folder,self._build_subfolder, "install"))
-
+        if self.settings.os == "Windows":
+            # for intl linking
+            tools.replace_in_file(os.path.join(self.package_folder,"lib","pkgconfig", "gio-2.0.pc"),"-lgio-2.0","-lgio-2.0 -lintl")
 
 
     def package_info(self):
